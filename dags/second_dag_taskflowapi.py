@@ -5,8 +5,9 @@ from airflow.decorators import dag, task
 @dag(dag_id='second_dag_taskflowapi',
     default_args=config.DEFAULT_ARGS,
     description='This is our second dag with PythonOperator using TaskflowAPI!',
-    start_date=datetime(2024, 3, 3, 2),
-    schedule_interval='@daily')
+    start_date=datetime(2024, 2, 25, 2),
+    schedule_interval='0 4 * * Mon,Wed,Fri',
+    catchup=True)
 def hi_world_data_pipeline():
 
     @task
