@@ -2,6 +2,7 @@ from dags_config import Config as config
 from datetime import datetime
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor
 
 def get_name(ti):
     import sklearn
@@ -36,6 +37,16 @@ with DAG(
     schedule_interval='@daily'
 ) as dag:
     
+    start = S3KeySensor(
+        task_id='minio_s3_sensor',
+        bucket_name='airflow',
+        bucket_key='data.csv',
+        aws_conn_id=config.S3_CONN_ID,
+        mode='poke',
+        poke_interval=5,
+        timeout=30
+    )
+    
     name = PythonOperator(
         task_id='get_name',
         python_callable=get_name,
@@ -52,5 +63,4 @@ with DAG(
         op_kwargs={'my_dict': {'a': 6, 'b': .2}}
     )
 
-    [name, age] >> finish
-    finish
+    start >> [name, age] >> finish

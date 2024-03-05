@@ -46,6 +46,7 @@
     1. `docker exec -it CONTAINER_ID bash`
     1. `airflow dags backfill s START_DATE e END_DATE`
 - **DB Connection** - in general, it's recommended in Airflow to delete rows before inserting them into db (see [third_dag_postgres_conn.py](./dags/third_dag_postgres_conn.py)) to avoid primary key constraint and row duplication
+- **Airflow Sensors** - a special type of operator which waits for something to occur to trigger task when exact time is unknown (see [To install S3 Sensor](#to-install-s3-sensor)) and is similar to polling but has two ways to do this: poke (the default and used for polling within seconds, requiring worker basically forever) or reschedule (used for polling within minutes but only requires worker when it is polling)
 
 # Running Airflow in Docker
 
@@ -68,6 +69,22 @@
 
 1. `docker-compose down -v`
 
+### To connect to Postgres
+
+1. add `ports` 5432:5432 under `services / postgres` in [docker-compose.yaml](docker-compose.yaml)
+1. download dbeaver or db management equivalent
+1. create a new database conn with PostgresQL with the following and test conn accordingly
+   - `Host` - localhost
+   - `Username`
+   - `Password`
+1. create a db as needed in PostgresQL
+1. create Airflow conn to Postgres with the following
+   - `Host` - host.docker.internal
+   - `Database` - name of db created from prev step
+   - `Login`, `Password` - from step 3
+   - `Port` - from step 1
+1. run postgres operator like [third_dag_postgres_conn.py](./dags/third_dag_postgres_conn.py)!
+
 ### To install py dependencies
 
 We can install dependencies in two ways; by extending or customizing. Choosing between the two approaches is typical build vs buy conundrum (customize is lightweight and especially useful for optimization but takes time and is complex to build, etc.). Extending is most common and the steps are as follow (customization is similar but requires us to build our own airflow version by forking the original repo):
@@ -78,3 +95,20 @@ We can install dependencies in two ways; by extending or customizing. Choosing b
 1. update `airflow-common/image/` from `-apache/airflow:2.8.2` to `extending-airflow:latest` from previous step in [docker-compose.yaml](./docker-compose.yaml)
 1. import dependencies accordignly like in [second_dag.py](./dags/second_dag.py)
 1. `docker-compose up -d --no-deps --build airflow-webserver airflow-scheduler` to rebuild and relaunch the webserver and scheduler
+
+### To install s3 sensor
+
+1. setup S3 service (AWS S3, MinIO)
+   - run Rootful commands to create docker image for S3 [MinIO Docker S3 Quick Start](https://min.io/docs/minio/container/index.html)
+   - once completed, addresses and URLs for S3 API (used for creating AWS conn) and MinIO Console (actual UI for buckets!) are provided for login with ports (used for creating AWS conn)
+1. follow steps in [to install py dependencies](#to-install-py-dependencies) to extend airflow with dependencies
+1. `docker-ps` to retrieve airflow_docker-airflow-scheduler-1 contain ID
+1. `docker exec -it CONTAINER_ID bash` to access container
+1. `pip list | grep amazon` to retrieve Amazon provider version
+1. access [Airflow's Amazon provider package](https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/index.html) with the correct version that matches our local airflow installation
+1. access [Amazon provider package's Python reference](https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/_api/airflow/providers/amazon/index.html) and look for S3 Sensors
+1. access [AWS S3 Sensor documentation](https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/_api/airflow/providers/amazon/aws/sensors/s3/index.html) to retrieve its class/module directory
+1. set-up s3 conn and use the Sensor operator like [second_dag.py](./dags/second_dag.py)! Conn requires:
+   - `aws_access_key_id` - S3 service account name
+   - `aws_secret_access_key` - S3 service account password
+   - `host` - "http://host.docker.internal:{PORT}/"

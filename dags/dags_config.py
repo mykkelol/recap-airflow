@@ -15,3 +15,11 @@ class Config:
     }
 
     POSTGRES_CONN_ID = "postgres_localhost"
+    
+    S3_CONFIG = {
+        "host": "host.docker.internal",
+        "port": "5432",
+        "db": 0
+    }
+
+    S3_CONN_ID = "minio_conn"
